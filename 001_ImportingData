@@ -1,0 +1,172 @@
+//001_MAPGG_Importing Data
+
+
+//Bring in NCLD Image from GEE Data Catalog
+var NLCD = ee.Image('USGS/NLCD/NLCD2006');
+Map.addLayer(NLCD, {min:11, max:95}, 'National Land Cover Dataset');
+
+//Bring in CT Census Layer from Public Data Fusion Table
+var CT_Guns = ee.FeatureCollection('ft:1ceMXdjAkCDLa4o5boKyHFCkpy2d11XSwDehyBsQ');
+Map.addLayer(CT_Guns, {color:'FFFFFF'},'CT Gun Owners');
+
+//Bring in My Elevation Grid
+var Elevation = ee.Image('GME/images/08039105425737821391-15228977093358892965');
+Map.addLayer(Elevation, {min:0, max:400}, 'My Elevation Layer');
+
+//Bring in My Shapefile of Registered Clowns in the USA
+var clowns = ee.FeatureCollection('ft:1tysKQtrzg3c_E5P6ij0dOTnSroUQ09gJpAb7n-cw');
+Map.addLayer(clowns, {}, 'Clowns');
+
+
+//Center Map
+Map.centerObject(CT_Guns, 9);
+
+
+
+/*---------------------------Guide for script------------------------------------------*/
+
+
+/*
+This script shows several ways of importing data into GEE as well as describes the basics behind working 
+with javascript within the GEE API PLayground.
+
+Tools for this session:
+    - PLAYGROUND LAYOUT
+    - CENTER MAP
+    - DATA SOURCES
+    - IMAGE LAYERS FROM DATACATALOG
+    - FEATURE LAYERS FROM PUBLIC DATA
+    - BRINGING IN RASTER GRIDS
+    - BRINGING IN SHAPEFILES
+
+
+NOTE: vector files are refered to as features and raster files are refered to as images
+
+
+- PLAYGROUND LAYOUT
+  Top left:   this section has a tab for stored scripts labeled 'examples' and a tab for browsing
+              for javascript operations to use within GEE, labeled 'docs'.  In the examples tab you 
+              will find several loaded example as well as a section on the top called 'Saved Code'  
+              This is where your scripts will be store once you have saved them.  
+  Top Right:  the console is where you will find error messages for debugging  and the output for print 
+              commands.  The objects and pixels tabs are the identifiers for features and images, 
+              respectively. You can click to a tab and then on your map and it will print the informaiton 
+              about what information is stored in the map at that location.  
+              [####Tasks is new -- I'll have to update this when I figure out what is does.]
+  Top Center: This is where you will write your code.
+  Lower Half: The lower half is your map.  Here is where the output of your script will be displayed.  
+              You can click on the layers box to turn on and off and adjust transpancy of the layers 
+              you've input and created.
+
+
+- CENTER MAP
+  The first line should include a set of x,y coordinates and zoome level so that when you run your script 
+  you the map below will show your results.  You can find the center coordinates by finding your center 
+  point on the map, selecting the 'Pixels' tabe on the Top Right, and clicking on that point on the map.  
+  The Lng, Lat coordinates will appear as the first line.  This is especially important when you bring in 
+  your own data that will most likely not be global.
+
+    Map.setCenter(-72.08662,41.46924, 13);
+
+- DATA SOURCES
+  Data sources come from three main locations, list below and described in the examples:
+    
+    1. Google Earth Engine Data Catalog (Remote Sensing Images and Classifications)
+    2. MapsEngine (Images/Raster Grids)
+    3. Fusion Tables (Features/Shapefiles)
+    
+- IMPORTING: BASICS
+  To import data you will use variations of a simple two line command, detailed below.
+  
+    var variable_name = ee.Data_Type('Data_ID');
+    Map.addLayer(variable_name,  {range of values to display}, 'Name of Layer') 
+    
+      var:  variable name, which you can call on later.  This cannot begin with a number.
+      ee.Data_Type: this will specify whether you are bringing in an Image, Feature, or Collection
+      Data_ID: this is the unique idea for each data layer and will be described below.
+      Map.addLayer: used to display data as a layer in the map section of the API
+      {}: the visualization bracket - important now is to specify the min and max values of your data.  The rest
+      will be expanded on in 002_MAPGG_Image Visualization.
+      Name of Layer: allows you to name the layer to easily toggle on and off in the Layers table on your map.
+    
+  
+- IMAGE LAYERS FROM DATACATALOG
+    #####I'm not sure here whether you'd like me to be explaining the remote sensing images, but I took the 
+    guess that it would only concern the data that would be used in GIS, so for now i'm using products rather 
+    than raw images.
+  
+    1. Go to http://earthengine.google.com/
+    2. searh for NLCD -- go to the details for 2006
+    3. On the lower right you will see the image ID - this is the ID you will use to call this image into the 
+      playground.
+
+      var NLCD = ee.Image('USGS/NLCD/NLCD2006');
+      Map.addLayer(NLCD, {min:1, max:40}, 'National Land Cover Dataset');
+
+
+- FEATURE LAYERS FROM PUBLIC DATA 
+    Fusion tables are similar to what an attribute table is with a shapefile or feature class in ArcMap.
+  
+    1. Go to https://research.google.com/tables
+    2. Select 'fusion tables' on the leafhand side - here you will be able to search for public tables.  
+    3. Enter 'connecticut gun permit' into the search bar. The third result will be 'Percent of Connecticut 
+    residents with gun permit, by town'.  You can click on that entry and view is as a fusion table.  Make sure to 
+    click on the map tab to preview what it will look like when you bring the table into the API.  
+    4. Next go to File -> About this table -> Copy the ID.  You will use this ID to call the table in the API 
+    as shown below.
+
+      var CT_Guns = ee.FeatureCollection('ft:1ceMXdjAkCDLa4o5boKyHFCkpy2d11XSwDehyBsQ');
+      Map.addLayer(CT_Guns, {color:'04c633'},'CT Gun Owners');
+
+
+- BRINGING IN RASTER GRIDS
+  To bring in a raster grid you can log in to mapsengine.google.com and upload files. 
+      
+      Extension	File Types accepted (https://support.google.com/mapsengine/answer/1272933):
+        .jpeg, .jpg	    JPEG
+        .jpg2	          JPEG2000
+        .tif, .tiff	    GeoTIFF, TIFF
+        .sid	          MrSID
+        .png	          Portable Network Graphics
+
+  1. Go to mapsengine.google.com
+  2. Select the upload button next to the create button. Here you can upload your raster data (recommended as 
+      a geotiff) 
+  3. Go to your newly upload image, copy the object ID by licking the access links button on the upper right.
+  4. Use this ID to bring in and display your data as shown below.
+
+    var Elevation = ee.Image('GME/images/08039105425737821391-15228977093358892965'); 
+    Map.addLayer(Elevation, {min:0, max:400}, 'My Elevation Layer');
+
+
+- BRINGING IN SHAPEFILES
+  You can also bring in shapefiles (vector layers, called features in GEE) into GEE API by creating a fusion
+  table for them.
+
+  1. Make sure your are logged on with your google account attached to your GEE access.  
+  2. Go to http://www.google.com/about/products/
+  3. Scroll down to the bottom of the page and click on Fusion tables.  This will take you to the about fusion 
+    tables page.  Here you will select 'Get the Drive App'.  This will allow you to create your own fusion 
+    tables.
+  4. Create Fusion Table
+    a. You can have a fusion table created for you using http://shpescape.com/ -- with this service, you can
+        upload a shapefile and get a fusion table ID with very little effort.  This option also elimates most
+        risk of geography/georeferencing confusion.
+    b. You can also to drive.google.com -> create -> fusion table -> upload an accepted format:
+          
+          .csv
+          .tsv
+          .txt
+          .kml  (recommended) - in ArcMap: toolbox -> conversion -> to KML -> save as .kmz -> open in Google Earth 
+          -> save as .kml
+          
+  5. IMPORTANT: you must now select share -> make table public in order to make your table available to bring
+      into the API.
+  6. go to file -> about this table -> copy your table ID and add is you did with public Data.  In the example
+      below I have uploaded a point shapefile of registered clowns in the US.
+      
+    var clowns = ee.FeatureCollection('ft:1tysKQtrzg3c_E5P6ij0dOTnSroUQ09gJpAb7n-cw');
+    Map.addLayer(clowns, {color:ff0000}, 'Clowns');
+    
+    
+*/
