@@ -1,0 +1,155 @@
+//004_MAPGG_Conversions
+
+//Center Map
+Map.setCenter(-72.66357,41.52522, 10);
+
+var NLCD_palette = [
+'313dbf',  //  11	Open Water
+'f2f2f2',  //  12	Perennial Ice/Snow
+'ef97ca',  //  21	Developed, Open Space 
+'ea1990',  //  22	Developed, Low Intensity 
+'a51c6a',  //  23	Developed, Medium Intensity
+'770a41',  //  24	Developed High Intensity
+'ceab90',  //  31	Barren Land (Rock/Sand/Clay)
+'479b42',  //  41	Deciduous Forest
+'21491e',  //  42	Evergreen Forest
+'107007',  //  43	Mixed Forest
+'4a6847',  //  51	Dwarf Scrub
+'747f48',  //  52	Shrub/Scrub
+'2aa318',  //  71	Grassland/Herbaceous
+'61891b',  //  72	Sedge/Herbaceous
+'7fb577',  //  73	Lichens
+'a0b59d',  //  74	Moss 
+'dbd457',  //  81	Pasture/Hay 
+'efc415',  //  82	Cultivated Crops 
+'1fa562',  //  90	Woody Wetlands 
+'26cc79'];  //  95	Emergent Herbaceous Wetlands 
+//
+
+/*----------------------------------------------------------------------------------*/
+// A. Change Connecticut Vector to Raster
+
+//  A.1.  Add feature from fusion table, display with simple color
+
+Map.addLayer(CT_Guns, {color:'04c633'},'CT Guns 1', false);
+
+//  A.2.  Convert feature to raster layer based on average number of pistol permits per county
+var CTG_image1 = CT_Guns.reduceToImage(['Pistol Permits'], ee.Reducer.mean());
+Map.addLayer(CTG_image1, {min:100, max:3700, palette:['7d87e8', '38895e']}, 'To Image 1');
+
+//  A.3.  Convert feature to raster using max population in 2010 for each county
+var CTG_image2 = CT_Guns.reduceToImage(['Population - 2010'], ee.Reducer.max());
+Map.addLayer(CTG_image2, {min:800, max:31000, palette:['f2d232', 'a878bc']}, 'To Image 2', false);
+
+
+/*----------------------------------------------------------------------------------*/
+//Change raster to vector
+Map.addLayer(NLCD.select(['landcover']), {min:11, max:95, palette:NLCD_palette}, 'NLCD', false);
+
+//Show just woody wetlands
+var NLCD_ww = NLCD.select([0]).eq(0);
+Map.addLayer(NLCD_ww, {min: 0, max:1, palette:['9da59f', 'ffffff']}, 'Just Woody Wetlands');
+
+var NLCD_imp = ee.Image('USGS/NLCD/NLCD2006').select('impervious');
+Map.addLayer(NLCD_imp.mask(NLCD_imp), {min:1, max:100, palette:['3c6600', '00ff63']}, 'NLCD Imperviousness', false);
+
+var NLCD_vect = NLCD.reduceToVectors({
+  reducer: ee.Reducer.first(),
+  geometry: CT_Guns, 
+  scale: 90, 
+  bestEffort: true 
+  });
+var NLCD_vect1 = NLCD.reduceToVectors(ee.Reducer.first(), CT_Guns, 90,'polygon', true);
+Map.addLayer(NLCD_vect.filterMetadata('label', 'greater_than', 50), {min:1, max:30, color:'ffffff'}, 'Imperviousness as Feature', false);
+//Map.addLayer(NLCD_vect1.filterMetadata('label', 'greater_than', 50), {min:1, max:30, color:'ffffff'}, 'Imperviousness as Feature', false);
+
+var filter = NLCD_vect.filterBounds(CT_Guns);
+Map.addLayer(filter, null, 'Quick Clip');
+
+
+// // Determine the CRS of the first band.
+// var crs = NLCD.projection().crs();
+// print('crs =', crs);
+
+
+/*---------------------------Guide for script------------------------------------------*/
+/*
+This script shows how to interchange vector and raster files using conversion tools
+
+Tools for this session:
+    - REDUCE TO IMAGE
+    - REDUCE TO VECTORS
+    - SELECTING BANDS
+    - NAMING LAYERS
+    - TURNING LAYERS OFF AND ON
+    - QUICK IMAGE FILTERS
+
+
+
+- REDUCE TO IMAGE
+  This feature will convert a vector layer (feature or featureCollection) to a raster Image 
+  layer for each pixel that intersects the vector layer.  You can select the properties
+  to transfer to raster values using the properties list.  The list should call a property 
+  field by name in quotation marks.  The reducer will calculate the selected function for
+  each property selected into one raster value.
+  
+  vector.reduceToImage(['property name'], ee.Reducer.type());
+
+
+- REDUCE TO VECTORS
+  This function will convert an image layer to a vector.  Each group of connected pixels with the 
+  same value into a unique polgyon.  A reducer will be applied through the bands of the image to
+  result in one value.  The properties of the function can be called eithe rin paranthesis or in 
+  brackets {} and by name if you wish to only specify some of the properties, with the property: 
+  selection.  Null should be entered for properties that you choose not to specify and for the 
+  default to be used.
+  
+  var NLCD_vect = NLCD.reduceToVectors({
+  reducer: ee.Reducer.first(),
+  geometry: CT_Guns, 
+  scale: 90, 
+  bestEffort: true 
+  });
+  
+  var NLCD_vect = NLCD.reduceToVectors(ee.Reducer.first(), CT_Guns, 90, true);
+  
+- SELECTING BANDS
+  When working with images that have multiply bands, you can select which band to perform an operation
+  on or to visualize with .select().  The band can either be called by name in parenthesis, square brackets,
+  and quotations, or by index with the number of list order in brackets and without quotations.  So, in the 
+  examples below the landcover band is being called by name and by list order both for analysis and just for
+  visualization.
+
+Map.addLayer(NLCD.select(['landcover']), {min:11, max:95, palette:NLCD_palette}, 'NLCD', false);
+var NLCD_ww = NLCD.select([0]).eq(0);
+
+
+- NAMING LAYERS
+  It is most convient for you as the creator and for others you might share your scripts with to name the
+  layers in the script.  This is done with the Map.addLayer function after the visualization brackets by putting
+  the name in quotations.
+  
+  Map.addLayer(NLCD_ww, {min: 0, max:1, palette:['9da59f', 'ffffff']}, 'Just Woody Wetlands');
+
+
+- TURNING LAYERS OFF AND ON
+  There are four options for layer display: 
+      1. Not adding a layer to the map at all
+      2. Commeting out the add to map line
+            Map.addLayer(NLCD_ww, null, 'Just Woody Wetlands');
+      3. Have the layer automatically display when the script is run
+            Map.addLayer(NLCD_ww, null, 'Just Woody Wetlands');
+            Map.addLayer(NLCD_ww, null, 'Just Woody Wetlands', true);
+      4. Have the layer added into the layers list but not display automatically
+            Map.addLayer(NLCD_ww, null, 'Just Woody Wetlands', false);
+
+- QUICK IMAGE FILTERS
+ 
+ 
+===EXAMPLES===
+
+--CONNECTICUT GUN PERMITS 
+ 
+--NATIONAL LAND COVER DATA SET
+
+*/
