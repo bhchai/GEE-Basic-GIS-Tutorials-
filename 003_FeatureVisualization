@@ -1,0 +1,133 @@
+//003_MAPGG_Feature Visualization
+
+//Center Map
+Map.setCenter(-72.66357,41.52522, 9);
+
+//Add feature from fusion table, display with simple color
+
+Map.addLayer(CT_Guns, {color:'04c633'},'CT Guns 1');
+
+//Filter to display only Towns with a population greater than 2,000 people
+Map.addLayer(CT_Guns.filterMetadata('Population - 2010', 'greater_than', 2000), {color:'442a89'},'CT Guns 2');
+
+//Calculate mean Population for CT in 2010
+var CTpop_mean = CT_Guns.aggregate_mean('Population - 2010');
+
+//Get resulting mean population
+print('The mean Connecticut population in 2010 is ' + CTpop_mean.getInfo());
+alert('The mean Connecticut population in 2010 is ' + CTpop_mean.getInfo());
+
+// Paint into a blank image.  Cast to byte() so we can use more than 1 color.
+var image1 = ee.Image().byte().paint(CT_Guns, 'Percent');
+// Display the image using random colors for each value.
+Map.addLayer(image1.randomVisualizer(), {}, 'CT Guns 3');
+
+var CT_Outline = new ee.FeatureCollection([
+    ee.Feature(ee.Geometry.Polygon(
+            [[-73.49304,42.05559], [-72.81189,42.04131], [-72.81189,42.00254], [-72.76794,42.00867], [-72.75696,42.04335],
+            [-71.79840,42.02703], [-71.79565,41.42025], [-71.83960,41.32751], [-72.04834,41.27592], [-72.97119,41.23049],
+            [-73.61115,40.95104], [-73.72650,41.10437], [-73.48755,41.21603], [-73.55072,41.29243]]),
+        {name: 'Connecticut', fill: 1})]);
+ 
+Map.addLayer(CT_Outline, {color:'2db5a9'}, 'CT Outline 1');
+
+//Paint the new polygon as an image outline
+var image2 = ee.Image().toByte().paint(CT_Outline, 3, 5);     
+Map.addLayer(image2, {palette: '000000',opacity: 1}, 'CT Outline 2');
+ 
+
+//create a blank image to paint reserve onto
+var CTGuns_image = ee.Image().toByte().paint(CT_Guns, CTpop_mean.getInfo());
+var esh = CTGuns_image.clip(CT_Guns);
+Map.addLayer(CTGuns_image, {min:0, max:0, palette:'ff36c9'}, 'CT Guns Feature as Image');
+
+
+/*---------------------------Guide for script------------------------------------------*/
+
+
+/*
+This script shows the varying ways you can display feature layers, most importantly how feature values can be
+easily 'painted' as images in order to use map algebra funcitons.
+
+Tools for this session:
+    - FEATURE VISUALIZATION
+    - FILTERING FEATURE TABLE INFORMATION
+    - FEATURE LAYER CALCULATIONS
+    - CALCULATION RESULTS: PRINTING AND ALERTS
+    - PAINT FEATURE TO IMAGE
+    - DRAWING FEATURE LAYERS AS IMAGES
+
+
+- FEATURE VISUALIZATION
+    The visualization brackets {} for features are much simpler than for images, containing mostly a specification
+    of color. This is because much of the specification of feature display will be done with filter functions, 
+    described in the next section. 
+    
+      
+- FILTERING FEATURE TABLE INFORMATION
+    Filtering infromation for a feature comes from the data stored in the fusion table.  By filtering, you can 
+    specify which columns of information, ranges of values, etc. you would like to both display and call for futher
+    calculation.  The basic format of a filtering is as follows:
+    
+
+- FEATURE LAYER CALCULATIONS
+    In traditional ArcMap-based GIS one would use field calculator to do table calculations on vector data.  The same
+    can be done in GEE API using a wide set of functions called either while bringing in a fusion table or after the
+    fact using the variable name.  The basic structure is outlined below with some simple arithmatic. 
+
+
+- CALCULATION RESULTS: PRINTING AND ALERTS
+    When working with and calculating new values from fusion tables, the values will not be automatically displayed or
+    represented on your map.  To simple get the value calculated you can either print it to the console or display it
+    in an alert.  The structure to call each of these operations is below.
+
+
+- PAINT FEATURE TO IMAGE
+    This allows you to take the outline of an polygon or a feature collection and create an image with the same shape.  
+    You can think of it as an alternative to reduceToImage.
+
+- DRAWING FEATURE LAYERS AS IMAGES
+
+
+
+
+===EXAMPLES===
+
+--CONNECTICUT GUN PERMITS
+Bring in CT Gun fusion table data and add to map to see basic informaiton
+var CT_Guns = ee.FeatureCollection('ft:1ceMXdjAkCDLa4o5boKyHFCkpy2d11XSwDehyBsQ');
+Map.addLayer(CT_Guns, {color:'04c633'},'CT Guns 1');
+
+  1. In many cases we may only be interested in data that meets certain criteria.  For example, in the CT gun permits
+      fusion table, I would like to only display towns that have over 2,000 people.  I can do this by calling one of the
+      filter terms explained above.
+      
+      Map.addLayer(CT_Guns.filterMetadata('Population - 2010', 'greater_than', 2000), {color:'442a89'},'CT Guns 3');
+
+
+  2. Here I create a new variable which will represent the value for the mean popualtion of all towns in Connecticut
+      for the 2010 population.  I can use this variable in subsequent calculations but CANNOT display it on the map
+      without painting this new value to an image (this will be described below).
+      
+      var CTpop_mean = CT_Guns.aggregate_mean('Population - 2010');
+      
+      
+  3. To check my mean population value I've just calculate, I've used both an alert (which will pop up every time the
+      srcipt is ran) and printed it to the console.
+      
+      print('The mean Connecticut population in 2010 is ' + CTpop_mean.getInfo());
+      alert('The mean Connecticut population in 2010 is ' + CTpop_mean.getInfo());  
+
+
+  4. As noted above, you can also create a palette to of my colors, either by defining a new palette variable or
+      within the visualization brakcets (as is done in Elevation 3).
+      
+      var ele_palette = ["AFF0DD","E2F097","247300", "D08D00", "710000", "512E00", "000000"];
+      Map.addLayer(Elevation, {min:0, max:400, opacity:1, palette:ele_palette}, 'Elevation 4');
+
+
+
+--CONNECTICUT OUTLINE
+
+*/
+
