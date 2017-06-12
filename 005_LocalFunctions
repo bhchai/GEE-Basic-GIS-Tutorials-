@@ -1,0 +1,306 @@
+//005_MAPGG_Local Functions
+
+/*The goal of this example script is to score each pixel based on its suitability for transit give
+specific input layers */
+
+
+//Center Map
+Map.setCenter( -83.4310, 8.9441, 12);
+
+//Add a palettes to use later in the script
+var scorePalette = ["293a6b" /*worst*/, '20f7de' /*moderate*/, "c902a4" /*best*/]; 
+var printPalette = ['466c33' /*Score -- 0*/,
+                    '6bb12c' /*Score -- 1*/,
+                    '37c261' /*Score -- 2*/,
+                    '1f6c4f' /*Score -- 3*/,
+                    '2eb3b3' /*Score -- 4*/,
+                    '3dc2eb' /*Score -- 5*/,
+                    'bab52a' /*Score -- 6*/,
+                    '938e2f' /*Score -- 7*/,
+                    'b616bf' /*Score -- 8*/,
+                    'ff00ee' /*Score -- 9*/];
+
+//Map.addLayer(border, {color: '000000'}, 'Outline');
+
+// Fill and outline the polygons in two colors
+var region = ee.Image(0).byte()
+    .paint(border, 2)       // Fill with 2
+    .paint(border, 1, 3);   // Outline with 1, width 3.
+
+// Creat a reverse mask to highlight your area of interest.
+var reverseMask = region.mask(region.neq(2));
+
+/*--------------------------------------*/
+//Bring in input layers
+
+// Elevation Layer
+
+var elePalatte= ["660044", "99ff44", "335533"]; //low to high
+//Map.addLayer(elevation, {min:0, max:1100, palette:elePalatte}, 'Elevation');
+
+//Development Layer
+
+var DevPalette = ["edd6c4", // Undeveloped Land
+"070706" /*PanAmerican Highway*/,
+"666666" /*Major Road*/,
+"454f43" /*Minor Road*/,
+"938989" /*Local Street*/,
+"a56935" /*Trail*/,
+"cc9911" /*Railroad*/,
+"ce35b7" /*Building*/];
+//Map.addLayer(development, {min:0, max:7, palette:DevPalette}, 'Development');
+
+// Vegetation Layer
+
+  var VegPalette = ["edd6c4", // Open Land
+"03b733" /*Mangroves*/,
+"005522" /*Forest*/,
+"ad793e" /*Abandoned Plant*/,
+"6d5d02" /*Cacao Plantation*/,
+"ffee66" /*Banana Plantation*/,
+"ffff44" /*Palm Plantation*/];
+//Map.addLayer(vegetation, {min:0, max:6, palette:VegPalette}, 'Vegetation');
+
+// Set hydrology palette
+var HydroPalette = ["edd6c4" /*Dry Land*/, "99EEEE" /*Minor Stream*/, "3333BB" /*Major Stream*/,
+                      "332266" /*River*/, "338844" /*Wetland*/];
+//Map.addLayer(hydrology, {min:0, max:4, palette:HydroPalette}, 'Hydrology');
+
+
+
+
+/*---------------------------------------------*/
+//Reclassify layers to given pixels an input score based on their original values
+
+//Elevation Reclass
+var elescore = elevation.expression(
+    "(b(0) <= 100) ? 4 \
+      : (b(0) <= 200) ? 3 \
+      : (b(0) <= 400) ? 2 \
+      : (b(0) <= 600) ? 1 \
+      : (b(0) <= 1100) ? 0 \
+      : 0");
+//Map.addLayer(elescore, {min:0, max:4, opacity:0.90, palette:scorePalette}, 'Elevation -- Score');
+
+//Development Reclass
+var devscore = development.expression(
+    "(b(0) == 0) ? 0 \
+      : (b(0) <= 2) ? 3 \
+      : (b(0) <= 4) ? 2 \
+      : (b(0) <= 6) ? 1 \
+      : 0");
+Map.addLayer(devscore, {min:0, max:3, opacity:0.80, palette:scorePalette}, 'Development -- Score', false);
+
+//Vegetation Reclass
+var vegscore = vegetation.lt(2);
+Map.addLayer (vegscore, {min:0, max:1, opacity:1, palette:scorePalette}, 'Vegetation -- Score', false);
+
+//Hydrology Reclass
+var hydroscore = hydrology.remap([2,3],[1,1],0);
+Map.addLayer (hydroscore, {min:0, max:1, opacity:0.50, palette:scorePalette}, 'Hydrology -- Score', false);
+
+
+/*---------------------------------------------*/
+//Combine the scores of individual layers to a final score
+
+var finaladded = vegscore.add(hydroscore).add(devscore).add(elescore);
+Map.addLayer(finaladded, {min:0, max:9, palette:scorePalette}, 'Results - Summing Layers - GEE', false);
+Map.addLayer(finaladded, {min:0, max:9, palette:printPalette}, 'Results - Sumning Layers - Print', false);
+
+
+
+
+/*---------------------------------------------*/
+// Combine Scored Layers into One Image for fun band math!
+
+//Bake the band names of each layer match
+var veg = vegscore.toInt().select([0],['score']);
+var hydro = hydroscore.toInt().select([0],['score']);
+var dev = devscore.toInt().select([0],['score']);
+var ele = elescore.toInt().select([0],['score']);
+
+//Put Score Layers into a list
+var collectionList = [veg, hydro, dev, ele];
+
+var scoreCollection = ee.ImageCollection.fromImages(collectionList);
+//Map.addLayer(finalcollection, {min:0, max:9, palette:finalpalette}, 'finalcollection');
+
+var scoreMean = scoreCollection.mean();
+Map.addLayer(scoreMean, {min:0, max:2.25, palette:scorePalette}, 'Local Mean Score', false);
+
+var scoreMax = scoreCollection.reduce(ee.Reducer.max());
+//Map.addLayer(scoreMax, {min:0, max:4, palette:scorePalette}, 'Local Max Score', false);
+
+var scoreMaj = scoreCollection.mode();
+Map.addLayer(scoreMaj, {min:0, max:1, palette:scorePalette}, 'Local Majority Score', false);
+
+//Find Local Majority
+var scoreMin = scoreCollection.min();
+var combinedDict = scoreMin
+  .reduceRegion({
+  reducer: ee.Reducer.minMax(),
+  geometry: border.geometry(), 
+  scale: 20
+});
+//print('Combined:', combinedDict.getInfo());
+
+var comarrdict = combinedDict.toArray();
+//print("Combined Array:", comarrdict.getInfo());
+
+var dictmax = comarrdict.get([0]).getInfo();
+print ('Highest Minimum Score:', dictmax);
+
+var dictmin = comarrdict.get([1]).getInfo();
+print ('Lowest Minimum Score:', dictmin);
+Map.addLayer(scoreMaj, {min:dictmin, max:dictmax, palette:scorePalette}, 'Local Min Score', false);
+
+Map.addLayer(reverseMask, {palette: '000000, 601f50', max: 1, opacity: 1}, 'Frame');
+
+
+//Alternatives to reverse mask and addition from line 117
+var scoreSum = scoreCollection.sum();
+Map.addLayer(scoreSum.clip(border), {min:0, max:9, palette:scorePalette}, 'Results - Band Math Sum - GEE');
+Map.addLayer(scoreSum.clip(border), {min:0, max:9, palette:printPalette}, 'Results - Band Math Sum - For Print', false);
+
+
+//Add alert to guide viewer to best locations for transit
+alert('Look for the pink pixels in the final map - they will tell you where transit is easiest');
+
+
+
+
+
+/*---------------------------Guide for script------------------------------------------*/
+/*  
+
+
+This script shows examples of basic operations for Focal Functions in GEE API.  The goal of this
+exercise is to display transportation networks and areas suitable to travel through in a vehicle
+or on foot.  
+
+
+Map Algebra Operations:
++ LOCAL SELECTION
++ LOCAL RANKING
+
+- LOCAL MIX
+- LOCAL VARIETY
+- LOCAL MAJORITY
+- LOCAL MINORITY
+- LOCAL AMOUNT
+    
++ LOCAL RANK
++ LOCAL MEAN
++ LOCAL MAXIMUM
++ LOCAL MINIMUM
++ LOCAL CALCULATION
++ LOCAL INTEGER
+- LOCAL BIT SELECTION
+
+
+  
+Tools for this session:
+  + LOCAL SELECTION
+      REMAP
+      GT, LT, EQ, NEQ, GTE, LTE
+      EXPRESSION
+
+  + LOCAL RANKING
+      CREATING IMAGE COLLECTION
+  
+  + LOCAL CALCULATION
+      ADD, MULTIPLY, DIVIDE, ETC. (RASTER CALCULATOR())
+      BAND MATH - SUM
+      
+  + LOCAL 
+      MIN
+      MAX
+      MEAN
+      INTEGER
+      
+  +BONUS!
+      CLIPPING
+      MASKING
+      REVERSE MASKING
+  
+  
+  
+==TOOLS==
+  + LOCAL SELECTION(RECLASSIFY)
+      REMAP
+        Remap is a quick way to reclassify values of an image.  Two lists specified, the first with the old
+        values and the second with those to reclassify those values to.  After the second list, specify a value
+        for which every other pixel not specified will be assigned.
+        
+        var hydroscore = hydrology.remap([2,3],[1,1],0);
+
+
+      GT, LT, EQ
+        These functions will assign the values of 1 to any pixel that is less than, greater than, or equal to
+        the value you specify and 0 for anything else. 
+        
+        var vegscore = vegetation.lt(2);
+
+      
+      EXPRESSION
+        An expression can by used for a more specific reclassification, specifying a range of values to be
+        reclassified a value you choose.  The final value specified what all pixel values not included will 
+        be reclassifed to.
+        
+        var elescore = elevation.expression(
+        "(b(0) <= 100) ? 4 \
+        : (b(0) <= 200) ? 3 \
+        : (b(0) <= 400) ? 2 \
+        : (b(0) <= 600) ? 1 \
+        : (b(0) <= 1100) ? 0 \
+        : 0");
+
+  + LOCAL RANKING
+      CREATING IMAGE COLLECTION
+        If you have several layers you'd like to combine into a collection or a multi-band image, you can do so
+        using either ee.ImageCollection.fromImages or addBands.
+        
+        var collectionList = [veg, hydro, dev, ele];
+        var scoreCollection = ee.ImageCollection.fromImages(collectionList);
+        var scoreImages = veg.addBands(hydro).addBands(dev).addBands(ele);
+
+  
+  + LOCAL CALCULATION
+      ADD (RASTER CALCULATOR)
+      BAND MATH - SUM
+        A calculation can be done across images in a collection by simply specifying the function after the image.
+        
+        var scoreMean = scoreCollection.mean();
+      
+  + LOCAL 
+      Local Functions can be used with an image collection or multiband image similar to how cell statistics is
+      used.  The reduce() function will employ a reducer for each pixel through each band or image in a collection.
+      
+      var scoreMax = scoreCollection.reduce(ee.Reducer.max());
+
+      
+  +BONUS!
+      CLIPPING
+        The clip function can be used to clip an image layer with either a vector or image layer that it intersects
+        with.
+        
+        Map.addLayer(scoreSum.clip(border), null, 'Results - Band Math Sum - GEE');
+
+
+      MASKING
+        Masking is used to 'erase' all pixels that are values of zero.  If one image is masked by another and two pixels
+        that overlap from each image both equal zero, it will no longer be displayed or possible to do calculations on.
+        
+        var reverseMask = region.mask(region.neq(2));
+
+  
+      REVERSE MASKING
+        Reverse masking will viel everything that is not in an area you have specified.  This helps with visualization.
+        
+        var reverseMask = region.mask(region.neq(2));
+
+
+==EXAMPLES==
+    
+
+*/ 
