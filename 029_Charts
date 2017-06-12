@@ -1,0 +1,266 @@
+//DT 29.00 Charts
+
+
+// Load an image collectoin of Landsat 8 for the calendar year 2014
+var collection = ee.ImageCollection('LANDSAT/LC8_L1T_8DAY_TOA').filterDate('2014-01-01','2014-12-31');
+// Find median value at each pixel through the image collection time series and convert that to an image
+var image = ee.Image(collection.median());
+
+
+// ADD LAYERS TO USE FOR CHARTING
+Map.addLayer(image.select(['B4','B3','B2']), {min:0, max:1}, 'Image');
+Map.addLayer(stateOutlines);
+Map.addLayer(NLCD);
+Map.addLayer(feature, {color:'ff00ff'},'Feature', true);
+
+
+
+/*------------------ Chart.image.regions --------------------*/
+// Charts the values of each band in an image under a feature or feature collection
+var chartImageTwo = Chart.image.regions(image.select(['B1','B2','B3','B4','B5','B6','B7']), feature.filterMetadata('Forciblerape', 'greater_than', 80), ee.Reducer.mean(), 30, 'City');
+// The names of individueal objects in a series can be assigned using setSeriesNames()
+chartImageTwo = chartImageTwo.setSeriesNames(['Anchorage', 'Minneapolis', 'Cleveland', 'Cincinnati']);
+// Set more detailed chart options
+chartImageTwo = chartImageTwo.setOptions({
+// Set chart title
+  title: 'Chart Regions',
+// Set line width
+  lineWidth: 2,           
+//If point shape or size (below) are specified, they will be added to the chart, otherwise no points will be displayed
+  pointShape: { type: 'star', sides: 5 }, 
+  pointSize:6,
+// Series can be used to specify different parameters for each object in a series
+  series: {
+// Colors can be specified using hexidecimal codes
+  0: {color: '#FF00cc'}, 
+// Colors can be spacified by writing the name
+  1: {color: 'darkblue'}, 
+  2: {color: '#3300ff'},
+  3: {color: 'lightblue'}
+  },
+// Label horizontal axis label (x-axis)
+  hAxis: {
+    title: 'Landsat Bands'
+  },
+// Label vertical axis label (y-axis)
+  vAxis: {
+    title: 'Reflectance Values',
+}});
+// Print chart to console
+print(chartImageTwo);
+
+
+
+/*------------------ Chart.feature.byFeature --------------------*/
+// Charting information from a feature collection - this allows you to chart the properties of a feature
+
+var featureChartTwo = Chart.feature.byFeature(feature, 'City', ['Robbery','Assault','Burglary']);
+// Set chart options
+featureChartTwo = featureChartTwo.setOptions({
+// Set chart title
+  title: 'Chart by Feature',
+// Set the colors of each line outside of the 'series' option
+  colors: ['lightgreen', 'grey', 'black'],
+// Assign the linewidth and style of each line within the 'series' option
+  series: {
+// Line dashed can be assigned by assigning the length of the lines/dashes to repeat
+            0: { lineWidth: 5, lineDashStyle: [2, 2, 20, 2, 20, 2]},
+            1: { lineWidth: 3, lineDashStyle: [3,2]},
+            2: { lineWidht: 4}
+    },
+// Label horizontal axis label (x-axis)
+  hAxis: {
+    title: 'City'
+  },
+// Label vertical axis label (y-axis)
+  vAxis: {
+    title: 'Number of Incidents'
+}});
+// Print chart to console
+print(featureChartTwo);
+
+
+
+/*------------------ Chart.feature.byProperty --------------------*/
+
+//This Chart allows you to chart based on a property, or column in the fusion table
+// ***Not sure how to label the series here -- 'setSeriesNames() does not work
+
+var featureChartThree = Chart.feature.byProperty(feature.filterMetadata('Assault', 'less_than', 300),['Murder']);
+// Set chart options
+featureChartThree = featureChartThree.setOptions({
+// Set chart title
+  title: 'Chart Feature by Property',
+// Label horizontal axis label (x-axis)
+  hAxis: {
+    title: 'Each City with less than 300 Assaults a year'
+  },
+// Label vertical axis label (y-axis)
+  vAxis: {
+    title: 'Number of Murders'
+}});
+// Print chart to console
+print(featureChartThree);
+
+
+
+/*------------------ Chart.feature.groups --------------------*/
+//  Chart a feature by groups allows you to chart two properties against each other
+var featureChartFour = Chart.feature.groups(feature, 'Murder', 'Forciblerape');
+// Set chart type to 'ScatterChart' to visualize relationship between x and y data
+featureChartFour = featureChartFour.setChartType('ScatterChart');
+// Set chart options
+featureChartFour = featureChartFour.setOptions({
+// Set chart title
+  title: 'Chart Feature Groups',
+// Label horizontal axis label (x-axis)
+  hAxis: {
+    title: 'Rape Rate'
+  },
+// Label vertical axis label (y-axis)
+  vAxis: {
+    title: 'Murder Rate'
+}});
+// Print chart to console
+print(featureChartFour);
+
+
+/*------------------ Chart.feature.histogram --------------------*/
+
+// Chart a feature by property with a histogram - note you can set how many bars to break data into and how wide they should be
+var featureChartFive = Chart.feature.histogram(feature, 'Larceny-theft',15).setSeriesNames(['Theft Rate']);
+// Set chart options
+featureChartFive = featureChartFive.setOptions({
+// Set chart title
+  title: 'Chart Histogram',
+// Assign color to histogram bars
+  colors: ['deeppink'],
+// Label horizontal axis label (x-axis)
+  hAxis: {
+    title: 'Number of Thefts'
+  },
+// Label vertical axis label (y-axis)
+  vAxis: {
+    title: 'Number of Cities with this number'
+}});
+// Print chart to console
+print(featureChartFive);
+
+
+
+
+/*------------------ Chart.image.byRegion --------------------*/
+
+// Chart image data under each region using optional reducer
+//**** Still unsure of how to label the object series names here.  But if I could figure it out, it would show
+//      that the light blue record (city) has the highest percentage of impervious service compared to other
+//      cities that also had less than 700 buglaries a year.
+var chartImageTwo2 = Chart.image.byRegion(NLCD.select(['impervious']), feature.filterMetadata('Burglary', 'less_than', 700), ee.Reducer.mean(), 30,'City');
+// Set chart type
+chartImageTwo2 = chartImageTwo2.setChartType('PieChart');
+// Set chart options
+chartImageTwo2 = chartImageTwo2.setOptions({
+  pieHole: 0.4,
+// Set chart title
+  title: 'Chart By Region',
+// Label horizontal axis label (x-axis)
+  hAxis: {
+    title: 'Landsat Bands'
+  },
+// Label vertical axis label (y-axis)
+  vAxis: {
+    title: 'Reflectance Values',
+}});
+// Print chart to console
+print(chartImageTwo2);
+
+
+
+
+/*------------------ Chart.image.seriesByRegion --------------------*/
+
+// Chart data for each region at every date for a specific band over the time period of the image collection
+var chartImageNine = Chart.image.seriesByRegion(collection, feature.filterMetadata('Murder','less_than', 3), ee.Reducer.mean(), 'B2', 30);
+// Set series name for each city (region/feature collection row)
+chartImageNine = chartImageNine.setSeriesNames(['Honolulu', 'El Paso', 'Corpus Christi', 'San Jose']);
+// Set chart options
+chartImageNine = chartImageNine.setOptions({
+// Set chart title
+  title: 'Chart Histogram',
+  pointShape: 'square',
+// Label horizontal axis label (x-axis)
+  hAxis: {
+    title: 'X Axis'
+  },
+// Label vertical axis label (y-axis)
+  vAxis: {
+    title: 'Y Axis'
+}});
+// Print chart to console
+print(chartImageNine);
+
+
+
+/*------------------ Chart(dataTable) --------------------*/
+
+var datatable = [['People','Places','Things','The Unknown'],[132,555,765,16],[344,58,436,899]];
+
+var dataTableChart = Chart(datatable, 'ColumnChart');
+var dataTableChartView = dataTableChart.setOptions({
+  // Set chart title
+  title: 'Data Table Chart',
+  chartType: 'ColumnChart',
+// Label horizontal axis label (x-axis)
+  hAxis: {
+    title: 'Rows'
+  },
+// Label vertical axis label (y-axis)
+  vAxis: {
+    title: 'Values in Rows'
+}});
+print(dataTableChartView);
+
+
+/*------------------ oldChart.setDataTable --------------------*/
+
+// This function allows you to use an existing chart set-up and plot new data from a
+// dataTable with these existing paramaters.
+var setDataTableChart = featureChartTwo.setDataTable(datatable);
+print(setDataTableChart);
+
+
+
+
+/*------------------ oldChart.setView() --------------------*/
+//A DataView is a convenience class that provides a read-only view of a DataTable, 
+//with methods to hide or reorder rows or columns quickly without modifying the 
+//linked, original data. 
+var setViewChart = dataTableChart.setView();
+print(setViewChart);
+
+
+
+
+/*------------------ oldChart.tranform() --------------------*/
+
+var transformChart = dataTableChart.transform(function(chartArgs) {
+ var oldDataTable = chartArgs.dataTable;
+  var newCols = [
+    {id: 'Verbs', label: 'Verbs',type: 'number'},
+    {id: 'Nouns', label: 'Nouns', type: 'number'},
+    {id: 'Adjectives', label: 'Adjectives', type: 'number'},
+    {id: 'Adverbs', label: 'Adverbs', type: 'number'}
+    ];
+ var newRows =  [{c:[{v: 1},{v:2},{v:3},{v:4}]},
+                {c:[{v: 2},{v:3},{v:4},{v:5}]}];
+  var newDataTable = {cols: newCols, rows: newRows};
+ return {
+    dataTable: newDataTable,
+    chartType: 'BarChart',
+    options: {
+      title: 'Chart Transform',
+    }
+  };
+});
+print(transformChart);
+
