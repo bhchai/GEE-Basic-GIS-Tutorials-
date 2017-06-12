@@ -1,0 +1,205 @@
+//002_MAPGG_Image Visualization
+
+//Center Map
+Map.setCenter(-72.08662,41.46924, 13);
+
+
+//Elevation regular with min and max define, and with half transparency
+Map.addLayer(Elevation, {}, 'Elevation 1');
+Map.addLayer(Elevation, {min:0, max:400}, 'Elevation 2');
+Map.addLayer(Elevation, {min:0, max:400, opacity:0.5, palette:['ff0000', 'ffffff']}, 'Elevation 3');
+
+var ele_palette = ["AFF0DD","E2F097","247300", "D08D00", "710000", "512E00", "000000"];
+Map.addLayer(Elevation, {min:0, max:400, opacity:1, palette:ele_palette}, 'Elevation 4');
+
+
+//Add to map with no palette, a color ramp, a random palette, and finally a specific color palette
+Map.addLayer(NLCD, {bands:'landcover', min:11, max:95}, 'NLCD 1', false);
+Map.addLayer(NLCD.randomVisualizer(), {}, 'NLCD 2', false);
+Map.addLayer(NLCD, {bands: 'landcover', min:11, max:95, palette:['ff0000', 'ffffff']}, 'NLCD 3', false);
+Map.addLayer(NLCD, {bands:'landcover', min:11, max:95, palette:ele_palette}, 'NLCD 4', false);
+
+var NLCD_palette = [
+'313dbf',  //  11	Open Water
+'f2f2f2',  //  12	Perennial Ice/Snow
+'ef97ca',  //  21	Developed, Open Space 
+'ea1990',  //  22	Developed, Low Intensity 
+'a51c6a',  //  23	Developed, Medium Intensity
+'770a41',  //  24	Developed High Intensity
+'ceab90',  //  31	Barren Land (Rock/Sand/Clay)
+'479b42',  //  41	Deciduous Forest
+'21491e',  //  42	Evergreen Forest
+'107007',  //  43	Mixed Forest
+'4a6847',  //  51	Dwarf Scrub
+'747f48',  //  52	Shrub/Scrub
+'2aa318',  //  71	Grassland/Herbaceous
+'61891b',  //  72	Sedge/Herbaceous
+'7fb577',  //  73	Lichens
+'a0b59d',  //  74	Moss 
+'dbd457',  //  81	Pasture/Hay 
+'efc415',  //  82	Cultivated Crops 
+'1fa562',  //  90	Woody Wetlands 
+'26cc79'];  //  95	Emergent Herbaceous Wetlands 
+Map.addLayer(NLCD, {bands:'landcover', min:11, max:95, palette:NLCD_palette}, 'NLCD 5');
+//(For fun here, zoom out and scroll to where you live it's interesting to see how accurate the NLCD is.)
+
+
+/*---------------------------Guide for script------------------------------------------*/
+
+
+/*  
+This script shows examples of the different visualization options for image data in GEE API
+  
+Tools for this session:
+    - {} VISUALIZATION BRACKETS
+    - OPACITY
+    - PALETTES
+    - HEXIDECIMAL COLORS
+    - SELECTING BANDS
+
+
+Remember to center your map to where you would like to focus
+Map.setCenter(-72.08662,41.46924, 13);
+
+- VISUALIZATION BRACKETS
+    The visualization brackets {} contain the parameters you will need to customize the look of your image or feature
+      layer.  The basic set up is as follows.  NOTE: specicfying the min and max are important, the rest are very
+      optaional.
+      
+      {bands: , min: , max: , opacity: , palette: }
+        
+          bands: specify band in a multi-bands image (see NLCD #1 below)
+          min: the minimum value you would like visualized
+          max: the maximum value you would like visualized
+          OPACITY: a scale from 0 to 1, 0 being completely transparent and 1 being completely opaque
+          palette: a list of colors specified as a variable previous and called on in the Map.addLayer line. The colors
+            must me in hexidecimal format.  
+      
+- PALETTES
+    A palette is set up as a list of hexidecimal colors.  It can be set up either as a variable on its own and then can
+    be called within arguments throughout the script.  It can also be definte within an argument, but therefore cannot
+    be easily called again.  The basic format of a paletter is as follows:
+    
+        var palette_name = ['######', '######', '######', '######'];
+        
+    When defining a palette or any color in GEE API, you must use HEXIDECIMAL COLOR scheme.  This consists of a
+    number-letter combination of six digits.  The format is as follows:
+      
+        RRGGBB  -- RR = red gun, GG = green gun, BB = blue gun, where FF is full color and 00 is no color.
+  Some basic colors..      
+        FF0000  --  Red
+        00FF00  --  Green
+        0000FF  --  Blue
+        FFFFFF  --  White
+        000000  --  Black
+        
+
+
+===EXAMPLES===
+
+--ELEVATION
+Add to map and make symbology so that I can really see the difference as elevation changes.
+var Elevation = ee.Image('GME/images/08039105425737821391-15228977093358892965');
+
+  1. Adding the Elevatoin layer without at least a min and max will not allow the program to know witin what ranges
+      to stretch and color values, and therefore will end with a blank white.
+      
+      Map.addLayer(Elevation, {}, 'Elevation 1');
+
+
+  2. Add to map with just min and max will stretch values from black to white 
+      
+      Map.addLayer(Elevation, {min:0, max:400}, 'Elevation 2');
+      
+      
+  3. Spefifying a top and bottom color will stretch the values between your min and max between these two values
+      like a color ramp.  Notice the opcity is set to 0.5 here which makes it 50% transparent.
+      
+      Map.addLayer(Elevation, {min:0, max:400, opacity:0.5, palette:['ff0000', 'ffffff']}, 'Elevation 3');
+
+
+  4. As noted above, you can also create a palette to of my colors, either by defining a new palette variable or
+      within the visualization brakcets (as is done in Elevation 3).
+      
+      var ele_palette = ["AFF0DD","E2F097","247300", "D08D00", "710000", "512E00", "000000"];
+      Map.addLayer(Elevation, {min:0, max:400, opacity:1, palette:ele_palette}, 'Elevation 4');
+
+  
+--NATIONAL LAND COVER DATASET
+Here we can use the NLCD to show how displaying an image layer with classified, or catagorical, values for each pixel
+can differe than somethig like elevation, that is a continuous range of values.
+var NLCD = ee.Image('USGS/NLCD/NLCD2006');
+
+  1. Note:selecting bands.  notice here that the NLCD raster dataset provided in the data catalog has two bands of data 
+      - one representing landcover, and the other representing imperviousness.  When visualizing a multi-band image, 
+      you can simply speficy which band you are interested in visualizing in the visualization brackets.
+      
+      Map.addLayer(NLCD, {bands:'landcover', min:11, max:95}, 'NLCD 1');
+
+
+  2. Without adding your own visualization, you can use a random visualizer.  This is a quick way to view the nuances
+      in your image layer.
+      
+      Map.addLayer(NLCD.randomVisualizer(), {}, 'NLCD 2');
+  
+  3. You can use the same color ramp for a catagorical image as with continuous image.
+      
+      Map.addLayer(NLCD, {bands: 'landcover', min:11, max:95, palette:['ff0000', 'ffffff']}, 'NLCD 3');
+
+
+  4. You can give an arbitracy color palette for this as well.  This will assign each new pixel value a new color, 
+      but take note that the number of different values may not match the different colors.
+    
+      Map.addLayer(NLCD, {bands:'landcover', min:11, max:95, palette:ele_palette}, 'NLCD 4');
+
+  5. Knowing that this image file is discrete, however, we can be a bit more precise with our palette, choosing 
+      which color we would like to represent each landcover number. A palette will assign the colors to a pixel 
+      value in ascending order, so we can therefore choose the colors we'd like each landcover to be represented as.
+      The NLCD legend and palette are as follows:
+
+      11	Open Water
+      12	Perennial Ice/Snow
+      21	Developed, Open Space 
+      22	Developed, Low Intensity 
+      23	Developed, Medium Intensity
+      24	Developed High Intensity
+      31	Barren Land (Rock/Sand/Clay)
+      41	Deciduous Forest
+      42	Evergreen Forest
+      43	Mixed Forest
+      51	Dwarf Scrub
+      52	Shrub/Scrub
+      71	Grassland/Herbaceous
+      72	Sedge/Herbaceous
+      73	Lichens
+      74	Moss 
+      81	Pasture/Hay 
+      82	Cultivated Crops 
+      90	Woody Wetlands 
+      95	Emergent Herbaceous Wetlands 
+      
+      Pallete:
+    var NLCD_palette = [
+    '313dbf',  //  11	Open Water
+    'f2f2f2',  //  12	Perennial Ice/Snow
+    'ef97ca',  //  21	Developed, Open Space 
+    'ea1990',  //  22	Developed, Low Intensity 
+    'a51c6a',  //  23	Developed, Medium Intensity
+    '770a41',  //  24	Developed High Intensity
+    'ceab90',  //  31	Barren Land (Rock/Sand/Clay)
+    '479b42',  //  41	Deciduous Forest
+    '21491e',  //  42	Evergreen Forest
+    '107007',  //  43	Mixed Forest
+    '4a6847',  //  51	Dwarf Scrub
+    '747f48',  //  52	Shrub/Scrub
+    '2aa318',  //  71	Grassland/Herbaceous
+    '61891b',  //  72	Sedge/Herbaceous
+    '7fb577',  //  73	Lichens
+    'a0b59d',  //  74	Moss 
+    'dbd457',  //  81	Pasture/Hay 
+    'efc415',  //  82	Cultivated Crops 
+    '1fa562',  //  90	Woody Wetlands 
+    '26cc79'];  //  95	Emergent Herbaceous Wetlands 
+      
+      Map.addLayer(NLCD, {bands:'landcover', min:11, max:95, palette:NLCD_palette}, 'NLCD 5');
+*/
